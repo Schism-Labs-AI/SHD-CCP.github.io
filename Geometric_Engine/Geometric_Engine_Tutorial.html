@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Geometric Engine of Time | Architecture & Code</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- Robust MathJax Configuration for Complex Mathematical Expressions -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)'], ['$', '$']],
+                displayMath: [['\\[', '\\]'], ['$$', '$$']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    colors: {
+                        darkbg: '#05050A',
+                        panel: '#0D111A',
+                        accent: '#38BDF8',
+                        accentDark: '#0284C7',
+                        codebg: '#080A0F',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #05050A; color: #E2E8F0; }
+        .glass-panel {
+            background: rgba(13, 17, 26, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+        .glow-text {
+            text-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #05050A; }
+        ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #38BDF8; }
+        
+        pre {
+            background-color: #080A0F !important;
+            border: 1px solid #1E293B;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #A5B4FC;
+        }
+        .math-block {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid #38BDF8;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            text-align: center;
+        }
+        .nav-link.active {
+            color: #38BDF8;
+            border-left: 2px solid #38BDF8;
+            padding-left: 0.75rem;
+            font-weight: 600;
+        }
+        
+        /* 3D Simulation Container Styles */
+        .sim-container {
+            width: 100%;
+            height: 400px;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            background: radial-gradient(circle at center, #0f172a 0%, #05050A 100%);
+            position: relative;
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+        .sim-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(2, 6, 23, 0.8);
+            border: 1px solid #38BDF8;
+            color: #38BDF8;
+            font-size: 0.65rem;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 4px 8px;
+            border-radius: 4px;
+            z-index: 10;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-accent selection:text-white flex flex-col min-h-screen relative">
+
+    <canvas id="network-bg" class="fixed top-0 left-0 w-full h-full -z-10 opacity-40 pointer-events-none"></canvas>
+
+    <header class="fixed top-0 w-full z-50 glass-panel border-b-0 border-t-0 border-x-0 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="https://biochainai.github.io/Owl-Academy/" target="_blank" title="BioChain AI - Owl Academy" class="hover:opacity-80 transition-opacity">
+                    <svg class="w-8 h-8 text-accent drop-shadow-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
+                        <path d="M8.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
+                        <path d="M15.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
+                        <path d="M12 13l-1.5 2.5h3L12 13z"></path>
+                        <path d="M6.5 8.5c1-1.5 3-1.5 3-1.5"></path>
+                        <path d="M17.5 8.5c-1-1.5-3-1.5-3-1.5"></path>
+                    </svg>
+                </a>
+                <div class="w-5 h-5 rounded-full bg-accent animate-pulse hidden sm:block" style="box-shadow: 0 0 15px #38BDF8;"></div>
+                <h1 class="font-serif text-lg font-bold tracking-wider text-white hidden md:block m-0">THE GEOMETRIC ENGINE</h1>
+                
+                <a href="https://www.linkedin.com/company/biochain-ai/" target="_blank" class="ml-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest border border-emerald-500/30 bg-emerald-950/40 px-2 py-1 rounded whitespace-nowrap">BioChain AI</a>
+
+                <div class="flex items-center gap-1 ml-1">
+                    <a href="https://x.com/Ebayednoob" target="_blank" class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors" title="X (Twitter)">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 22.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                    <a href="https://www.youtube.com/@Neural-Awakening" target="_blank" class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-red-500 transition-colors" title="YouTube">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-12 flex gap-12 items-start relative w-full flex-grow">
+        
+        <aside id="toc-sidebar" class="hidden lg:flex flex-col w-64 shrink-0 sticky top-28 h-[calc(100vh-8rem)] overflow-y-auto pr-4 transition-all duration-300 border-r border-slate-800/0 mr-2 overflow-x-hidden">
+            <div class="flex justify-between items-center mb-6 min-w-[12rem]">
+                <h3 id="toc-title" class="text-xs font-bold uppercase tracking-widest text-slate-500 transition-opacity duration-300">Table of Contents</h3>
+                <button id="toc-toggle" class="text-slate-400 hover:text-white p-1.5 rounded-md hover:bg-slate-800 transition-all border border-transparent hover:border-slate-700 focus:outline-none z-10 shrink-0 bg-slate-900/50">
+                    <svg id="toc-icon" class="w-4 h-4 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+            </div>
+            <ul id="toc-list" class="space-y-4 text-sm font-mono text-slate-400 transition-opacity duration-300 min-w-[12rem]">
+                <li><a href="#abstract" class="nav-link block hover:text-white transition-colors">00. Overview</a></li>
+                <li><a href="#dataprep" class="nav-link block hover:text-white transition-colors text-emerald-400">00b. SHD-CCP Prep</a></li>
+                <li><a href="#step1" class="nav-link block hover:text-white transition-colors">01. The Topological Clock</a></li>
+                <li><a href="#step2" class="nav-link block hover:text-white transition-colors">02. The 5-Tier Stator</a></li>
+                <li><a href="#step3" class="nav-link block hover:text-white transition-colors">03. 6-Channel Rotor</a></li>
+                <li><a href="#step4" class="nav-link block hover:text-white transition-colors">04. Orthogonal Offload</a></li>
+                <li><a href="#step5" class="nav-link block hover:text-white transition-colors">05. Parity Closure Theorem</a></li>
+            </ul>
+        </aside>
+
+        <main class="flex-1 max-w-4xl min-w-0">
+            
+            <!-- Intro / Abstract -->
+            <section id="abstract" class="mb-20 scroll-mt-28">
+                <h2 class="text-4xl md:text-5xl font-serif font-bold text-white mb-6 glow-text">A Scale-Synchronized Symbolic Homomorphism</h2>
+                <p class="text-lg text-slate-300 leading-relaxed mb-6">
+                    Welcome to the definitive guide on building the <strong>Geometric Engine of Time</strong>. This document maps the rigorous mathematical theorems bridging cosmological time (The Platonic Great Year) with quantum time (The Cesium-133 SI Second) directly to their executable Javascript and WebGL code counterparts.
+                </p>
+                <div class="glass-panel p-6 rounded-xl border-l-4 border-l-accent">
+                    <h4 class="text-sm font-bold text-accent uppercase tracking-widest mb-3">The Epistemological Core</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        This architecture is not a physical quantum-coupled system. It does not entangle with a localized cesium atom. Instead, it functions as a <strong>deterministic orbital calculator</strong>: a symbolic computational manifold that geometrically encodes exact temporal congruences without relying on arbitrary computational framerates.
+                    </p>
+                </div>
+            </section>
+
+            <hr class="border-slate-800 mb-16">
+
+            <!-- Step 00b: Data Preparation (SHD-CCP Framing) -->
+            <section id="dataprep" class="mb-20 scroll-mt-28">
+                <h3 class="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-emerald-400 font-mono text-lg">00b.</span> SHD-CCP Data Preparation & Protocol Framing
+                </h3>
+                <p class="text-slate-300 leading-relaxed mb-6">
+                    Before calculating coordinate transitions, the engine prepares inbound streams using the <strong>Symbolic High Dimensional Context Compression Protocol (SHD-CCP)</strong>. Unlike standard token sequences, SHD-CCP frames represent high-dimensional topological matrices, routing them dynamically using a 64-bit physical architecture.
+                </p>
+
+                <div class="glass-panel p-6 rounded-xl border-l-4 border-l-emerald-500 mb-8 bg-emerald-950/20">
+                    <p class="text-sm text-slate-300 leading-relaxed mb-4">
+                        <strong class="text-emerald-400">Modularity of the Register:</strong> The exact bitwise organization is <em>modular</em>. The payload blocks do not have to be rigidly locked to the exact indices shown below across all engine environments. However, they <strong>must</strong> be strictly structured, and every bit must hold specific semantic structural meaning to dictate the physical unfolding of the data.
+                    </p>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        As an example, a standard 64-bit payload can be conceptualized geometrically as a dense \(4 \times 4 \times 4\) voxel cube. When routed through the engine, the system generates 8 additional outer parity nodes (yielding 72 total structural nodes) and dynamically unfolds this cubic payload into a resonant \(12 \times 6\) toroidal manifold.
+                    </p>
+                </div>
+
+                <!-- Bitfield Layout Visualization -->
+                <div class="glass-panel p-6 rounded-xl mb-8 border border-emerald-500/30">
+                    <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-widest font-mono mb-4">Example Modular Register Map (64-Bit Protocol)</h4>
+                    <div class="grid grid-cols-12 gap-1 font-mono text-center text-xs">
+                        <div class="col-span-6 bg-slate-900 border border-slate-800 p-2 rounded text-slate-400">
+                            <span class="block text-[10px] text-slate-500">BITS 0–35</span>
+                            Coordinate Payload (Low)
+                        </div>
+                        <div class="col-span-2 bg-emerald-950/80 border border-emerald-400/50 p-2 rounded text-emerald-300 font-bold animate-pulse">
+                            <span class="block text-[10px] text-emerald-500">BITS 36–39</span>
+                            FORM ID
+                        </div>
+                        <div class="col-span-4 bg-slate-900 border border-slate-800 p-2 rounded text-slate-400">
+                            <span class="block text-[10px] text-slate-500">BITS 40–63</span>
+                            Coordinate Payload (High)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Framing Mathematics</h4>
+                        <p class="text-sm text-slate-400 mb-4">
+                            Let $P \in \{0, 1\}^{64}$ be a 64-bit protocol coordinate packet. The system extracts the active <strong>Form ID</strong> ($F_s$) at bits 36 through 39:
+                        </p>
+                        <div class="math-block border-l-emerald-400">
+                            \[F_s = \sum_{i=0}^{3} P_{36+i} \cdot 2^i\]
+                        </div>
+                        <p class="text-sm text-slate-400 mb-4">
+                            The extracted $F_s$ operates as a master logic routing switch, shifting structural processing modes dynamically:
+                        </p>
+                        <ul class="list-disc pl-5 text-xs text-slate-400 space-y-2 mb-4">
+                            <li><strong>Forms 0–2: Standard scaling.</strong> Coordinates map straight to linear transformations.</li>
+                            <li><strong>Form 3: High-precision lossless correction.</strong> Enforces real-time alignment and boundary reconciliation parameters.</li>
+                            <li><strong>Form 5: Geometric pointer mode.</strong> Triggers codex amplification, projecting 1D points directly into 5D space.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Framing Parser</h4>
+                        <p class="text-sm text-slate-400 mb-4">This parsing is executed inside the structural decoder to establish non-integer, high-dimensional coordinate alignment:</p>
+                        <pre><code>function decodeSHDCCP(packet64) {
+    // Extract routing identifier from bits 36-39
+    const formId = (packet64 >> 36n) & 0xFn;
+    
+    switch (Number(formId)) {
+        case 0: case 1: case 2:
+            return executeStandardScaling(packet64);
+        case 3:
+            return executeLosslessCorrection(packet64);
+        case 5:
+            return triggerCodexAmplification(packet64);
+        default:
+            throw new Error("Invalid Form ID");
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- Simulation 00b: Voxel Cube to Toroid -->
+                <div class="sim-container" id="sim-00b">
+                    <div class="sim-badge">LIVE SIM: 64-Bit Payload Unfolding (Cube + Parity to 72-Node Toroid)</div>
+                    <button class="reset-btn absolute top-3 right-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] uppercase tracking-wider font-mono px-3 py-1.5 rounded border border-slate-600/50 z-20 transition-all backdrop-blur-sm shadow-lg hover:text-white cursor-pointer">Reset Visual</button>
+                </div>
+            </section>
+
+            <hr class="border-slate-800 mb-16">
+
+            <!-- Step 1: Topological Clock -->
+            <section id="step1" class="mb-20 scroll-mt-28">
+                <h3 class="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-accent font-mono text-lg">01.</span> The Intrinsic Topological Clock
+                </h3>
+                <p class="text-slate-300 leading-relaxed mb-6">
+                    Previous chronometric engines relied on an external <code class="bg-slate-800 px-1 py-0.5 rounded text-pink-400">requestAnimationFrame</code> running at 60 FPS. To build a universal calculator, time must be parameterized by spatial progression—specifically, the discrete geometric expansion of the manifold's central singularity.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Mathematics</h4>
+                        <p class="text-sm text-slate-400 mb-4">The architecture pairs a 5-tier manifold with an inward accelerating winding density given by:</p>
+                        <div class="math-block">
+                            \[W_n = 16 - 2n \quad \text{for } n = 0, 1, 2, 3, 4\]
+                        </div>
+                        <p class="text-sm text-slate-400 mb-4">The total number of integer helical wraps required to traverse the entire macroscopic structure is:</p>
+                        <div class="math-block">
+                            \[W_{\Sigma} = \sum_{n=0}^{4} (16 - 2n) = 60\]
+                        </div>
+                        <p class="text-sm text-slate-400">The dimensionless count of \(60\) is an intrinsic topological invariant of the spatial manifold.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Code Execution</h4>
+                        <p class="text-sm text-slate-400 mb-4">In the <code>buildDualHelix()</code> function, this formula is explicitly coded to derive the structural geometry independent of time.</p>
+                        <pre><code>function buildDualHelix(layerGroup, tConf, index) {
+    // Calculate winding invariant W_n
+    const wraps = 16 - (index * 2); 
+    const totalPoints = wraps * 50;
+
+    for(let p = 0; p <= totalPoints; p++) {
+        const cycleRatio = p / totalPoints;
+        // Phi tracks the helical winding
+        const phi = (cycleRatio * Math.PI * 2 * wraps);
+        // ... build vectors
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- Simulation 1: Topological Clock -->
+                <div class="sim-container" id="sim-1">
+                    <div class="sim-badge">LIVE SIM: T0 Winding Density (16 Wraps)</div>
+                    <button class="reset-btn absolute top-3 right-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] uppercase tracking-wider font-mono px-3 py-1.5 rounded border border-slate-600/50 z-20 transition-all backdrop-blur-sm shadow-lg hover:text-white cursor-pointer">Reset Visual</button>
+                </div>
+            </section>
+
+            <!-- Step 2: The Stator -->
+            <section id="step2" class="mb-20 scroll-mt-28">
+                <h3 class="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-accent font-mono text-lg">02.</span> The Stator: The 5-Tier Toroidal Manifold
+                </h3>
+                <p class="text-slate-300 leading-relaxed mb-6">
+                    To process the topological pulses, the architecture defines a 5-tier, nested toroidal spatial manifold. The radii expand according to exact arithmetic sequences to ensure proportional spatial mapping.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Mathematics</h4>
+                        <p class="text-sm text-slate-400 mb-4">The major radii are defined as \(15, 35, 65, 105, 155\). The constant second differences prove the geometry follows a strict quadratic expansion:</p>
+                        <div class="math-block">
+                            \[R_n = 5n^2 + 15n + 15\]
+                        </div>
+                        <p class="text-sm text-slate-400 mb-4">The minor radii governing cross-sectional tube thickness (\(4, 6, 8, 10, 12\)) follow a linear progression:</p>
+                        <div class="math-block">
+                            \[r_n = 2n + 4\]
+                        </div>
+                        <p class="text-sm text-slate-400 mb-4">Each tier is rotated by \(\frac{\pi}{2}\) along alternating axes:</p>
+                        <div class="math-block">
+                            \[\operatorname{Rot}(T_n)= \begin{cases} \operatorname{Rot}_x\left(\frac{\pi}{2}\right), & n \text{ even} \\ \operatorname{Rot}_y\left(\frac{\pi}{2}\right), & n \text{ odd} \end{cases}\]
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Code Execution</h4>
+                        <p class="text-sm text-slate-400 mb-4">This quadratic and linear expansion is hardcoded as the foundational geometric matrix <code>TOROIDS</code>.</p>
+                        <pre><code>// 5-Tier Toroid Alignment Config
+const TOROIDS = [
+  // T0: R=15, r=4, Rot X
+  { major: 15, minor: 4, 
+    rot: new THREE.Euler(Math.PI/2, 0, 0) },
+  // T1: R=35, r=6, Rot Y
+  { major: 35, minor: 6, 
+    rot: new THREE.Euler(0, Math.PI/2, 0) }, 
+  // T2: R=65, r=8, Rot X
+  { major: 65, minor: 8, 
+    rot: new THREE.Euler(Math.PI/2, 0, 0) },
+  // T3: R=105, r=10, Rot Y
+  { major: 105, minor: 10, 
+    rot: new THREE.Euler(0, Math.PI/2, 0) },
+  // T4: R=155, r=12, Rot X
+  { major: 155, minor: 12, 
+    rot: new THREE.Euler(Math.PI/2, 0, 0) }
+];</code></pre>
+                    </div>
+                </div>
+
+                <!-- Simulation 2: The Stator -->
+                <div class="sim-container" id="sim-2">
+                    <div class="sim-badge">LIVE SIM: 5-Tier Quadratic Manifold</div>
+                    <button class="reset-btn absolute top-3 right-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] uppercase tracking-wider font-mono px-3 py-1.5 rounded border border-slate-600/50 z-20 transition-all backdrop-blur-sm shadow-lg hover:text-white cursor-pointer">Reset Visual</button>
+                </div>
+            </section>
+
+            <!-- Step 3: The Rotor -->
+            <section id="step3" class="mb-20 scroll-mt-28">
+                <h3 class="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-accent font-mono text-lg">03.</span> The Rotor: 6-Channel Parity Encoding
+                </h3>
+                <p class="text-slate-300 leading-relaxed mb-6">
+                    Bounding the SI-defined Cesium-133 frequency (\(\nu_{Cs} = 9{,}192{,}631{,}770\) Hz) by our geometric 60-pulse register yields a fractional residual: exactly \(153{,}210{,}529.5\) cycles per pulse. The engine must geometrically encode this \(0.5\) half-integer parity state.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Mathematics</h4>
+                        <p class="text-sm text-slate-400 mb-4">The two-frame parity oscillation is encoded geometrically through a six-channel dual-helix structure. The channel space carries a product symmetry of \(C_3 \times C_2\).</p>
+                        <ul class="list-disc pl-5 text-sm text-slate-400 mb-4 space-y-2">
+                            <li><strong>The \(C_3\) Triadic Anchor:</strong> Three phases offset at \(\theta = 0^\circ, 120^\circ, -120^\circ\).</li>
+                            <li><strong>The \(C_2\) Chiral Parity:</strong> Two directional braids (Forward \(+1\) and Inverse \(-1\)).</li>
+                        </ul>
+                        <div class="math-block">
+                            \[\pi(+1) = 0, \quad \pi(-1) = 0.5\]
+                        </div>
+                        <p class="text-sm text-slate-400">This defines a formal parity map, spatializing the two-state temporal oscillation directly into the helix directions.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Code Execution</h4>
+                        <p class="text-sm text-slate-400 mb-4">The loops in <code>buildDualHelix</code> explicitly multiply the \(C_3\) stars by the \(C_2\) inverse weaves.</p>
+                        <pre><code>const numStars = state.tripleStar ? 3 : 1;
+// C2 Parity Map: Forward (1) and Inverse (-1)
+const weaves = state.inverseWeave ? [1, -1] : [1]; 
+
+weaves.forEach(wrapDir => {
+    // C3 Triadic Anchor Loop
+    for(let star=0; star<numStars; star++) {
+        // 120 degree offsets
+        const starOffset = star * (Math.PI * 2 / 3);
+        
+        // ... generating points where
+        // phi = direction * wraps + offset
+        const phi = (cycleRatio * Math.PI * 2 * 
+                     wraps * wrapDir) + starOffset;
+    }
+});</code></pre>
+                    </div>
+                </div>
+
+                <!-- Simulation 3: The Rotor -->
+                <div class="sim-container" id="sim-3">
+                    <div class="sim-badge">LIVE SIM: 6-Channel Dual-Helix Rotor (T2 Focus)</div>
+                    <button class="reset-btn absolute top-3 right-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] uppercase tracking-wider font-mono px-3 py-1.5 rounded border border-slate-600/50 z-20 transition-all backdrop-blur-sm shadow-lg hover:text-white cursor-pointer">Reset Visual</button>
+                </div>
+            </section>
+
+            <!-- Step 4: Orthogonal Offload -->
+            <section id="step4" class="mb-20 scroll-mt-28">
+                <h3 class="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-accent font-mono text-lg">04.</span> Orthogonal Area Stability (TQF Gears)
+                </h3>
+                <p class="text-slate-300 leading-relaxed mb-6">
+                    To ensure the \(C_3\) triadic anchors do not deform or collapse, the system generates localized Triple Quad Formula (TQF) monitoring units spaced at exact \(90^\circ\) (\(\frac{\pi}{2}\)) intervals.
+                </p>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Mathematics</h4>
+                        <p class="text-sm text-slate-400 mb-4">Each gear calculates the quadrances (squared Euclidean distances) between the 3 anchors (\(p_A, p_B, p_C\))::</p>
+                        <div class="math-block">
+                            \[Q_1=\|p_A-p_B\|^2, \quad Q_2=\|p_B-p_C\|^2\]
+                        </div>
+                        <p class="text-sm text-slate-400 mb-4">The gear outputs the Archimedean Area Remainder:</p>
+                        <div class="math-block">
+                            \[A_R = (Q_1+Q_2+Q_3)^2 - 2(Q_1^2+Q_2^2+Q_3^2)\]
+                        </div>
+                        <p class="text-sm text-slate-400">By Heron's formula in quadrance form, this guarantees <strong class="text-white">\(A_R = 16A^2\)</strong>. If \(A_R > 0\), the structure forms a valid non-degenerate Euclidean triangle.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-3 border-b border-slate-800 pb-2">The Code Execution</h4>
+                        <p class="text-sm text-slate-400 mb-4">The <code>buildOffloadGears</code> function mathematically constructs this invariant stability monitor.</p>
+                        <pre><code>for (let offIdx = 0; offIdx < totalGears; offIdx++) {
+    // Place gears orthogonally
+    const orbitOffset = (offIdx % 4) * (Math.PI / 2); 
+    
+    // ...
+    const anchors = [];
+    for (let a = 0; a < 3; a++) {
+        // Evaluate the C3 Area nodes
+        const angle = a * (Math.PI * 2 / 3);
+        aMesh.position.set(
+            Math.cos(angle) * tConf.minor * 1.5, 
+            0, 
+            Math.sin(angle) * tConf.minor * 1.5
+        );
+        anchors.push(aMesh);
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- Simulation 4: Orthogonal Offload -->
+                <div class="sim-container" id="sim-4">
+                    <div class="sim-badge">LIVE SIM: TQF Heron-Quadrance Monitor</div>
+                    <button class="reset-btn absolute top-3 right-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] uppercase tracking-wider font-mono px-3 py-1.5 rounded border border-slate-600/50 z-20 transition-all backdrop-blur-sm shadow-lg hover:text-white cursor-pointer">Reset Visual</button>
+                </div>
+            </section>
+
+            <!-- Step 5: Closure Theorem -->
+            <section id="step5" class="mb-20 scroll-mt-28">
+                <h3 class="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="text-accent font-mono text-lg">05.</span> The Parity Closure Theorem
+                </h3>
+                <p class="text-slate-300 leading-relaxed mb-6">
+                    The synthesis of the 6-channel data streams across the 5-tier manifold establishes a total topological phase space navigating \(6 \times 5 = 30\) structural nodes. This dictates the ultimate formal theorem of the engine.
+                </p>
+
+                <div class="glass-panel p-8 rounded-xl border border-accent/30 relative overflow-hidden mb-8">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-bl-full blur-2xl"></div>
+                    <h4 class="text-xl font-serif font-bold text-white mb-4">Theorem: Temporal Parity Closure</h4>
+                    <p class="text-sm text-slate-300 mb-4 leading-relaxed">
+                        Let the geometric system consist of a 6-channel product symmetry (\(C_3 \times C_2\)) propagated across 5 orthogonal toroidal tiers, yielding exactly 30 structural nodes. 
+                        Let the system map exactly one topological pulse to each structural node. Given the SI reference oscillator frequency of \(\nu_{Cs} = 9{,}192{,}631{,}770\) Hz and bounding \(\Delta t_{geo} = 1\) s (60 Hz base):
+                    </p>
+                    <div class="math-block border-l-green-400 bg-black/40">
+                        \[T_{\text{traversal}} = \frac{30\text{ pulses}}{60\text{ Hz}} = 0.5\text{ seconds}\]
+                    </div>
+                    <p class="text-sm text-slate-300 mb-4 leading-relaxed">
+                        Comparing this to the SI reference oscillator, the number of atomic periods accumulated over this precise duration is:
+                    </p>
+                    <div class="math-block border-l-green-400 bg-black/40">
+                        \[N_{\text{total}} = 9{,}192{,}631{,}770 \cdot 0.5 = 4{,}596{,}315{,}885\]
+                    </div>
+                    <p class="text-sm text-white font-semibold">
+                        Because \(4{,}596{,}315{,}885\) is an exact integer, the half-integer parity state incurred at the individual pulse boundary is structurally perfectly resolved. The 30-node geometric traversal yields a mathematically exact, zero-remainder integer closure. $\blacksquare$
+                    </p>
+                </div>
+
+                <!-- Simulation 5: Closure Theorem -->
+                <div class="sim-container h-96" id="sim-5">
+                    <div class="sim-badge">LIVE SIM: Master Holonomic Synthesis (Full Engine)</div>
+                    <button class="reset-btn absolute top-3 right-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] uppercase tracking-wider font-mono px-3 py-1.5 rounded border border-slate-600/50 z-20 transition-all backdrop-blur-sm shadow-lg hover:text-white cursor-pointer">Reset Visual</button>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <footer class="border-t border-slate-800 bg-[#05050A] py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="flex justify-center items-center gap-2 mb-4">
+                <div class="w-4 h-4 rounded-full bg-accent"></div>
+                <span class="font-serif font-bold tracking-widest text-white">THE GEOMETRIC ENGINE</span>
+            </div>
+            <p class="text-xs text-slate-500 font-mono">Deterministic Geometric Encoding of Temporal Congruences</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            const observerOptions = {
+                root: null,
+                rootMargin: '-20% 0px -60% 0px',
+                threshold: 0
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href').substring(1) === entry.target.id) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(section => observer.observe(section));
+            
+            const tocSidebar = document.getElementById('toc-sidebar');
+            const tocToggle = document.getElementById('toc-toggle');
+            const tocTitle = document.getElementById('toc-title');
+            const tocList = document.getElementById('toc-list');
+            const tocIcon = document.getElementById('toc-icon');
+            let tocExpanded = true;
+
+            if (tocToggle && tocSidebar) {
+                tocToggle.addEventListener('click', () => {
+                    tocExpanded = !tocExpanded;
+                    if (tocExpanded) {
+                        tocSidebar.classList.replace('w-14', 'w-64');
+                        tocSidebar.classList.remove('border-slate-800/50');
+                        tocSidebar.classList.add('border-slate-800/0');
+                        tocTitle.style.opacity = 1;
+                        tocList.style.opacity = 1;
+                        tocIcon.classList.remove('rotate-180');
+                    } else {
+                        tocSidebar.classList.replace('w-64', 'w-14');
+                        tocSidebar.classList.remove('border-slate-800/0');
+                        tocSidebar.classList.add('border-slate-800/50');
+                        tocTitle.style.opacity = 0;
+                        tocList.style.opacity = 0;
+                        tocIcon.classList.add('rotate-180');
+                    }
+                });
+            }
+            
+            const canvas = document.getElementById('network-bg');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                let width, height;
+                let particles = [];
+                
+                function resize() {
+                    width = canvas.width = window.innerWidth;
+                    height = canvas.height = window.innerHeight;
+                }
+                window.addEventListener('resize', resize);
+                resize();
+
+                class Particle {
+                    constructor() {
+                        this.x = Math.random() * width;
+                        this.y = Math.random() * height;
+                        this.vx = (Math.random() - 0.5) * 0.7;
+                        this.vy = (Math.random() - 0.5) * 0.7;
+                        this.radius = Math.random() * 1.5 + 0.5;
+                    }
+                    update() {
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        if (this.x < 0 || this.x > width) this.vx *= -1;
+                        if (this.y < 0 || this.y > height) this.vy *= -1;
+                    }
+                    draw() {
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = '#38BDF8';
+                        ctx.fill();
+                    }
+                }
+
+                for (let i = 0; i < 75; i++) particles.push(new Particle());
+
+                function animateNetwork() {
+                    ctx.clearRect(0, 0, width, height);
+                    for (let i = 0; i < particles.length; i++) {
+                        particles[i].update();
+                        particles[i].draw();
+                        for (let j = i + 1; j < particles.length; j++) {
+                            const dx = particles[i].x - particles[j].x;
+                            const dy = particles[i].y - particles[j].y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 180) {
+                                ctx.beginPath();
+                                ctx.moveTo(particles[i].x, particles[i].y);
+                                ctx.lineTo(particles[j].x, particles[j].y);
+                                ctx.strokeStyle = `rgba(56, 189, 248, ${0.8 - (dist / 180)})`;
+                                ctx.lineWidth = 0.5;
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                    requestAnimationFrame(animateNetwork);
+                }
+                animateNetwork();
+            }
+        });
+    </script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Shared Configuration
+        const TOROIDS = [
+            { major: 15, minor: 4, rot: new THREE.Euler(Math.PI/2, 0, 0) },
+            { major: 35, minor: 6, rot: new THREE.Euler(0, Math.PI/2, 0) }, 
+            { major: 65, minor: 8, rot: new THREE.Euler(Math.PI/2, 0, 0) },
+            { major: 105, minor: 10, rot: new THREE.Euler(0, Math.PI/2, 0) },
+            { major: 155, minor: 12, rot: new THREE.Euler(Math.PI/2, 0, 0) }
+        ];
+
+        // Helper to create independent scenes tied to specific divs
+        function createSimulation(containerId, setupFn, renderFn) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.enablePan = false;
+
+            // Basic Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+            scene.add(ambient);
+            const point1 = new THREE.PointLight(0x38bdf8, 1, 500);
+            point1.position.set(100, 100, 100);
+            scene.add(point1);
+            const point2 = new THREE.PointLight(0xf59e0b, 1, 500);
+            point2.position.set(-100, -100, -100);
+            scene.add(point2);
+
+            // Execute specific setup
+            const contextData = setupFn(scene, camera, controls);
+
+            // Setup Reset Button functionality
+            const initCamPos = camera.position.clone();
+            const initCamRot = camera.rotation.clone();
+            const initTarget = controls.target.clone();
+
+            const resetBtn = container.querySelector('.reset-btn');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    camera.position.copy(initCamPos);
+                    camera.rotation.copy(initCamRot);
+                    controls.target.copy(initTarget);
+                    controls.update();
+                });
+            }
+
+            // Performance: Only render when visible
+            let isVisible = false;
+            const observer = new IntersectionObserver((entries) => {
+                isVisible = entries[0].isIntersecting;
+            }, { threshold: 0.1 });
+            observer.observe(container);
+
+            const clock = new THREE.Clock();
+
+            function animate() {
+                requestAnimationFrame(animate);
+                if (isVisible) {
+                    const dt = clock.getDelta();
+                    const time = clock.getElapsedTime();
+                    controls.update();
+                    if (renderFn) renderFn(scene, contextData, time, dt);
+                    renderer.render(scene, camera);
+                }
+            }
+            animate();
+
+            // Handle Resize
+            window.addEventListener('resize', () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+        }
+
+        // ---------------------------------------------------------
+        // SIMULATION 00b: Voxel Cube (64) + Parity (8) -> 72-Node Toroid
+        // ---------------------------------------------------------
+        createSimulation('sim-00b', (scene, camera, controls) => {
+            camera.position.set(0, 25, 45);
+            const group = new THREE.Group();
+            scene.add(group);
+
+            const totalNodes = 72;
+            const nodes = [];
+            const posCube = [];
+            const posToroid = [];
+
+            // Define Geometry & Material for a single "bit/voxel"
+            const geo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: 0x10b981, 
+                roughness: 0.2, 
+                metalness: 0.8,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            const R = 15; // Major radius for Toroid
+            const r = 5;  // Minor radius for Toroid
+
+            for(let i=0; i<totalNodes; i++) {
+                // 1. Calculate Toroid Positions (12 major steps, 6 minor steps = 72 nodes)
+                const majorIdx = i % 12;
+                const minorIdx = Math.floor(i / 12);
+                const theta = (majorIdx / 12) * Math.PI * 2;
+                const phi = (minorIdx / 6) * Math.PI * 2;
+
+                const tx = (R + r * Math.cos(phi)) * Math.cos(theta);
+                const ty = r * Math.sin(phi);
+                const tz = (R + r * Math.cos(phi)) * Math.sin(theta);
+                posToroid.push(new THREE.Vector3(tx, ty, tz));
+
+                // 2. Calculate Cube Positions (64-core + 8 parity corners)
+                let cx, cy, cz;
+                if (i < 64) {
+                    // 4x4x4 dense payload matrix
+                    cx = (i % 4) - 1.5; 
+                    cy = Math.floor((i / 4) % 4) - 1.5; 
+                    cz = Math.floor(i / 16) - 1.5; 
+                } else {
+                    // 8 outer parity bounds
+                    const p = i - 64;
+                    cx = (p % 2 === 0) ? -2.5 : 2.5;
+                    cy = (Math.floor(p / 2) % 2 === 0) ? -2.5 : 2.5;
+                    cz = (Math.floor(p / 4) % 2 === 0) ? -2.5 : 2.5;
+                }
+                
+                const spacing = 2.2;
+                posCube.push(new THREE.Vector3(cx * spacing, cy * spacing, cz * spacing));
+
+                // 3. Create Meshes
+                const mesh = new THREE.Mesh(geo, mat.clone());
+                mesh.position.copy(posCube[i]);
+                group.add(mesh);
+                nodes.push(mesh);
+            }
+
+            // Ghost Torus Wireframe (Destination Map)
+            const ghostTorus = new THREE.Mesh(
+                new THREE.TorusGeometry(R, r, 6, 12),
+                new THREE.MeshBasicMaterial({ color: 0x10b981, wireframe: true, transparent: true, opacity: 0.1 })
+            );
+            group.add(ghostTorus);
+
+            return { group, nodes, posCube, posToroid };
+        }, (scene, data, time, dt) => {
+            // Smooth ping-pong interpolation
+            const lerpFactor = (Math.sin(time * 1.2) + 1) / 2;
+            
+            // Ease-in-out curve for a satisfying structural "snap"
+            const ease = lerpFactor < 0.5 ? 2 * lerpFactor * lerpFactor : 1 - Math.pow(-2 * lerpFactor + 2, 2) / 2;
+
+            data.nodes.forEach((node, i) => {
+                // Interpolate layout positions
+                node.position.lerpVectors(data.posCube[i], data.posToroid[i], ease);
+                
+                // Spin individual voxels to visualize active mode shift
+                node.rotation.x = ease * time * 2;
+                node.rotation.y = ease * time * 2;
+                
+                // Color shift: Slate (Compact Code) -> Emerald (Unfolded Topology)
+                const isParity = i >= 64;
+                const colorCube = isParity ? new THREE.Color(0xf59e0b) : new THREE.Color(0x334155); 
+                const colorToroid = new THREE.Color(0x10b981);
+                node.material.color.lerpColors(colorCube, colorToroid, ease);
+            });
+
+            // Slowly rotate the entire structure macroscopically
+            data.group.rotation.y += 0.2 * dt;
+        });
+
+        // ---------------------------------------------------------
+        // SIMULATION 1: Topological Clock (T0 Winding)
+        // ---------------------------------------------------------
+        createSimulation('sim-1', (scene, camera, controls) => {
+            camera.position.set(0, 30, 40);
+            const tConf = TOROIDS[0];
+            const group = new THREE.Group();
+            group.rotation.copy(tConf.rot);
+            scene.add(group);
+
+            // Ghost Torus Material representation
+            const tMesh = new THREE.Mesh(
+                new THREE.TorusGeometry(tConf.major, tConf.minor, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0x334155, transparent: true, opacity: 0.2, wireframe: true })
+            );
+            group.add(tMesh);
+
+            // 16 Wraps Helix Winding Generation
+            const wraps = 16;
+            const totalPoints = 800;
+            const pts = [];
+            for (let p=0; p<=totalPoints; p++) {
+                const cycle = p/totalPoints;
+                const theta = cycle * Math.PI * 2;
+                const phi = cycle * Math.PI * 2 * wraps;
+                const r = tConf.major + tConf.minor * Math.cos(phi);
+                pts.push(new THREE.Vector3(r * Math.cos(theta), r * Math.sin(theta), tConf.minor * Math.sin(phi)));
+            }
+            const curve = new THREE.CatmullRomCurve3(pts);
+            const tube = new THREE.Mesh(
+                new THREE.TubeGeometry(curve, totalPoints, 0.4, 8, false),
+                new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.5 })
+            );
+            group.add(tube);
+
+            // Travelling Indicator Particle
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(1.5, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            group.add(particle);
+
+            return { curve, particle, group };
+        }, (scene, data, time, dt) => {
+            data.group.rotation.z += 0.05 * dt; // Slow rot
+            const t = (time * 0.1) % 1.0;
+            data.particle.position.copy(data.curve.getPointAt(t));
+        });
+
+        // ---------------------------------------------------------
+        // SIMULATION 2: 5-Tier Stator Manifold
+        // ---------------------------------------------------------
+        createSimulation('sim-2', (scene, camera, controls) => {
+            camera.position.set(0, 150, 200);
+            const group = new THREE.Group();
+            scene.add(group);
+
+            const colors = [0xef4444, 0xf59e0b, 0x10b981, 0x3b82f6, 0xa855f7];
+
+            TOROIDS.forEach((tConf, i) => {
+                const mesh = new THREE.Mesh(
+                    new THREE.TorusGeometry(tConf.major, tConf.minor, 16, 100),
+                    new THREE.MeshStandardMaterial({ color: colors[i], transparent: true, opacity: 0.3, wireframe: true })
+                );
+                mesh.rotation.copy(tConf.rot);
+                group.add(mesh);
+            });
+
+            return { group };
+        }, (scene, data, time, dt) => {
+            data.group.rotation.y = Math.sin(time * 0.2) * 0.5;
+            data.group.rotation.x = Math.cos(time * 0.2) * 0.2;
+        });
+
+        // ---------------------------------------------------------
+        // SIMULATION 3: 6-Channel Rotor (on T2)
+        // ---------------------------------------------------------
+        createSimulation('sim-3', (scene, camera, controls) => {
+            camera.position.set(0, 60, 100);
+            const tConf = TOROIDS[2]; // Focus on T2
+            const group = new THREE.Group();
+            group.rotation.copy(tConf.rot);
+            scene.add(group);
+
+            // Ghost Torus background
+            group.add(new THREE.Mesh(
+                new THREE.TorusGeometry(tConf.major, tConf.minor, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0x334155, transparent: true, opacity: 0.1, wireframe: true })
+            ));
+
+            const wraps = 12; // T2 wrap density
+            const weaves = [1, -1]; // Forward and Inverse paths
+            const fwdColors = [0xef4444, 0x22c55e, 0x3b82f6]; // RGB
+            const invColors = [0xec4899, 0xfacc15, 0x06b6d4]; // CMY
+
+            weaves.forEach((dir, bIdx) => {
+                for(let star=0; star<3; star++) {
+                    const starOffset = star * (Math.PI * 2 / 3);
+                    const pts = [];
+                    for(let p=0; p<=800; p++) {
+                        const cycle = p/800;
+                        const theta = cycle * Math.PI * 2;
+                        const phi = (cycle * Math.PI * 2 * wraps * dir) + starOffset;
+                        const rA = tConf.minor * (dir === 1 ? 0.6 : 0.9); // offsets for visual clearance
+                        
+                        const r = tConf.major + rA * Math.cos(phi);
+                        pts.push(new THREE.Vector3(r * Math.cos(theta), r * Math.sin(theta), rA * Math.sin(phi)));
+                    }
+                    const curve = new THREE.CatmullRomCurve3(pts);
+                    const mat = new THREE.MeshStandardMaterial({ 
+                        color: dir === 1 ? fwdColors[star] : invColors[star], 
+                        transparent: true, opacity: dir === 1 ? 0.9 : 0.5,
+                        wireframe: dir === -1
+                    });
+                    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 800, 0.6, 6, false), mat));
+                }
+            });
+
+            return { group };
+        }, (scene, data, time, dt) => {
+            data.group.rotation.z += 0.1 * dt;
+        });
+
+        // ---------------------------------------------------------
+        // SIMULATION 4: Orthogonal Offload (TQF Gears)
+        // ---------------------------------------------------------
+        createSimulation('sim-4', (scene, camera, controls) => {
+            camera.position.set(0, 10, 20);
+            controls.target.set(0,0,0);
+            
+            const group = new THREE.Group();
+            scene.add(group);
+
+            // Minor axis cylinder proxy
+            group.add(new THREE.Mesh(
+                new THREE.CylinderGeometry(1, 1, 40, 16),
+                new THREE.MeshStandardMaterial({ color: 0x334155, transparent: true, opacity: 0.3, wireframe: true })
+            )).rotation.z = Math.PI/2;
+
+            const gearGroup = new THREE.Group();
+            group.add(gearGroup);
+
+            // Main Rotating Ring
+            const minorRadius = 8;
+            gearGroup.add(new THREE.Mesh(
+                new THREE.TorusGeometry(minorRadius, 0.2, 8, 32),
+                new THREE.MeshStandardMaterial({ color: 0x94a3b8 })
+            )).rotation.y = Math.PI/2;
+
+            // 3 Nodes tracking Triadic Anchor positions & structural area stability face
+            const anchors = [];
+            const tqfGeo = new THREE.BufferGeometry();
+            const tqfMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+            const tqfMesh = new THREE.Mesh(tqfGeo, tqfMat);
+            gearGroup.add(tqfMesh);
+
+            // Structural Wire Edges
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+            const edgeGeo = new THREE.BufferGeometry();
+            const edgeLine = new THREE.LineLoop(edgeGeo, edgeMat);
+            gearGroup.add(edgeLine);
+
+            for(let i=0; i<3; i++) {
+                const a = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                gearGroup.add(a);
+                anchors.push(a);
+            }
+
+            return { gearGroup, anchors, minorRadius, tqfMesh, edgeLine };
+        }, (scene, data, time, dt) => {
+            // Spin localized gear
+            data.gearGroup.rotation.x += 1.0 * dt;
+            
+            // Induce periodic spatial strains (wobble) to simulate dynamic tension monitoring
+            const pts = [];
+            data.anchors.forEach((a, i) => {
+                const baseAngle = i * (Math.PI * 2 / 3);
+                const wobble = Math.sin(time * 2 + i) * 1.5; 
+                const r = data.minorRadius + wobble;
+                
+                a.position.set(0, Math.cos(baseAngle) * r, Math.sin(baseAngle) * r);
+                pts.push(a.position.clone());
+            });
+
+            // Update Archimedean triangle projection mesh
+            data.tqfMesh.geometry.setFromPoints(pts);
+            data.tqfMesh.geometry.computeVertexNormals();
+            data.edgeLine.geometry.setFromPoints(pts);
+            
+            // Dynamically alter color hue from cool blue (stable) to intense warning red (strain)
+            const strain = Math.abs(Math.sin(time * 2));
+            data.tqfMesh.material.color.lerpColors(new THREE.Color(0x38bdf8), new THREE.Color(0xef4444), strain * 0.5);
+        });
+
+        // ---------------------------------------------------------
+        // SIMULATION 5: Closure Theorem (Full Synthesis)
+        // ---------------------------------------------------------
+        createSimulation('sim-5', (scene, camera, controls) => {
+            camera.position.set(0, 250, 300);
+            const group = new THREE.Group();
+            scene.add(group);
+
+            const colors = [0xef4444, 0xf59e0b, 0x10b981, 0x3b82f6, 0xa855f7];
+            
+            TOROIDS.forEach((tConf, index) => {
+                const tGroup = new THREE.Group();
+                tGroup.rotation.copy(tConf.rot);
+                group.add(tGroup);
+
+                // Nested structural manifold rings
+                tGroup.add(new THREE.Mesh(
+                    new THREE.TorusGeometry(tConf.major, tConf.minor, 16, 64),
+                    new THREE.MeshStandardMaterial({ color: colors[index], transparent: true, opacity: 0.1, wireframe: true })
+                ));
+
+                const wraps = 16 - (index * 2);
+                
+                // Overlay both Forward and Inverse braids across all tiers to showcase the 30-node closure
+                [1, -1].forEach((dir, bIdx) => {
+                    const pts = [];
+                    for(let p=0; p<=400; p++) {
+                        const cycle = p/400;
+                        const theta = cycle * Math.PI * 2;
+                        const phi = (cycle * Math.PI * 2 * wraps * dir);
+                        const rA = tConf.minor * (dir === 1 ? 0.5 : 0.8);
+                        const r = tConf.major + rA * Math.cos(phi);
+                        pts.push(new THREE.Vector3(r * Math.cos(theta), r * Math.sin(theta), rA * Math.sin(phi)));
+                    }
+                    const curve = new THREE.CatmullRomCurve3(pts);
+                    tGroup.add(new THREE.Mesh(
+                        new THREE.TubeGeometry(curve, 400, 0.4, 4, false),
+                        new THREE.MeshStandardMaterial({ color: dir === 1 ? 0xffffff : colors[index], transparent: true, opacity: dir === 1 ? 0.9 : 0.4 })
+                    ));
+                });
+            });
+
+            return { group };
+        }, (scene, data, time, dt) => {
+            data.group.rotation.y = time * 0.1;
+            data.group.rotation.z = Math.sin(time * 0.1) * 0.1;
+        });
+
+    </script>
+</body>
+</html>
