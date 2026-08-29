@@ -11,6 +11,41 @@ keeps SHD-CCP's users, auth config, and any future data fully standalone.
 - Authorized domain: the GitHub Pages domain has been added under
   Authentication → Settings → Authorized domains
 
+## Access control (login gate + ban list)
+
+`index.html` now gates all content behind Google Sign-In:
+
+- **Signed out** → visitors see a "Sign In Required" panel in place of the
+  page content (no navigation away, no content in the DOM until they sign in).
+- **Signed in** → the client reads `bannedUsers/{uid}` from Firestore.
+  - Document **exists** → the user is signed out and redirected to
+    `access-denied.html`.
+  - Document **does not exist** → the gate is hidden and the page content
+    is revealed.
+  - Read **fails** (offline, rules misconfigured, etc.) → the gate stays up
+    with a "couldn't verify, please refresh" message. A failed check is
+    never treated as a ban, so an outage can't silently lock everyone out
+    to `access-denied.html`.
+
+**You must enable Firestore** on the `shd-ccp-website` project (Firebase
+Console → Build → Firestore Database → Create database) for the ban check to
+work at all — until then every sign-in will fail the read and get stuck on
+the gate. Use the rules in the Firestore section below.
+
+### To ban / unban someone
+
+Firebase Console → Firestore Database → `bannedUsers` collection:
+- **Ban**: add a document whose **Document ID** is the user's Auth UID (find
+  it under Authentication → Users). Fields don't matter for the check itself,
+  but adding `reason` (string) and `bannedAt` (timestamp) is useful for your
+  own records.
+- **Unban**: delete that document.
+
+There is no in-app admin UI for this by design — the client can only ever
+read its own `bannedUsers/{ownUid}` document (see rules below), so bans have
+to be managed from the console (or a trusted server/Admin SDK) rather than
+from the page itself.
+
 ## Recommended security rules / settings
 
 **1. Google Cloud API key restrictions** (defense in depth — the `apiKey` in
@@ -28,10 +63,10 @@ restricting it stops abuse from other origins):
   plus `localhost` for local testing). Remove any domains that belong to the
   other BiochainAI sites.
 
-**3. Firestore / Storage rules** — this landing page currently only uses
-Firebase Auth (sign-in/out) and does not read or write any Firestore or
-Storage data. If a database or file storage is added later, start from a
-locked-down, auth-required baseline and tighten from there:
+**3. Firestore / Storage rules** — the page reads one Firestore collection,
+`bannedUsers`, to enforce the ban list described above. Everything else is
+default-denied. Apply these rules exactly (Firebase Console → Firestore
+Database → Rules):
 
 ```
 // Firestore
@@ -43,7 +78,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Example: users can only read/write their own profile document.
+    // Ban list: a signed-in user may check ONLY their own document, so the
+    // client can never enumerate who else is banned. Writes are blocked —
+    // manage bans from the Console (or Admin SDK), never from the page.
+    match /bannedUsers/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Example, if a profile/user-data collection is added later: users can
+    // only read/write their own document.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }

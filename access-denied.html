@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Restricted | SHD-CCP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000;
+            color: #00ffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-style {
+            background: rgba(0, 20, 20, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-lg w-full mx-4 p-8 md:p-10 rounded-lg card-style text-center">
+        <i class="fas fa-ban fa-4x text-red-400 mb-6"></i>
+        <h1 class="text-3xl font-bold text-cyan-200 mb-4">Access Restricted</h1>
+        <p class="text-cyan-300 text-lg leading-relaxed mb-6">
+            This Google account does not have access to SHD-CCP. If you believe
+            this is a mistake, contact the site administrator.
+        </p>
+        <button id="signout-button" class="inline-block bg-cyan-800 hover:bg-cyan-700 text-cyan-200 font-semibold py-2 px-5 rounded-lg transition-colors">
+            Sign Out &amp; Try a Different Account
+        </button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDDip-kFRL9FUnlvZLY74uFBlZ6fnOOzDA",
+            authDomain: "shd-ccp-website.firebaseapp.com",
+            projectId: "shd-ccp-website",
+            storageBucket: "shd-ccp-website.firebasestorage.app",
+            messagingSenderId: "970296691372",
+            appId: "1:970296691372:web:412f0f3ae0af4e0e082d09",
+            measurementId: "G-YNESPHGBBD"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        document.getElementById('signout-button').addEventListener('click', () => {
+            signOut(auth).finally(() => {
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>

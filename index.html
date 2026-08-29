@@ -102,7 +102,18 @@
             <p class="mt-2 text-lg text-cyan-400">How One 64-bit Key Creates a Unique Digital Universe</p>
         </header>
 
-        <div id="main-content">
+        <div id="auth-gate" class="max-w-xl mx-auto p-8 md:p-10 rounded-lg card-style text-center">
+            <i class="fas fa-lock fa-3x text-cyan-500 mb-4"></i>
+            <h2 class="text-2xl font-bold text-cyan-200 mb-3">Sign In Required</h2>
+            <p class="text-cyan-400 mb-6">Sign in with Google to view the SHD-CCP Digital Seed briefing.</p>
+            <button id="gate-auth-button" class="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg transition-colors text-lg">
+                <i class="fa-brands fa-google"></i>
+                <span>Sign In with Google</span>
+            </button>
+            <p id="gate-status" class="text-sm text-cyan-600 mt-4"></p>
+        </div>
+
+        <div id="main-content" class="hidden">
 
             <!-- Section 1: Introduction -->
             <div class="mb-10 p-6 md:p-8 rounded-lg card-style">
@@ -265,6 +276,11 @@
             onAuthStateChanged,
             signOut
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {
+            getFirestore,
+            doc,
+            getDoc
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE CONFIGURATION ---
         // Standalone SHD-CCP Firebase project (separate from the other
@@ -282,6 +298,7 @@
         // --- FIREBASE & APP INITIALIZATION ---
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
         // --- GLOBAL STATE ---
@@ -293,6 +310,10 @@
         const authButton = document.getElementById('auth-button');
         const authButtonLabel = authButton.querySelector('span');
         const notificationBar = document.getElementById('notification-bar');
+        const authGate = document.getElementById('auth-gate');
+        const gateAuthButton = document.getElementById('gate-auth-button');
+        const gateStatus = document.getElementById('gate-status');
+        const mainContent = document.getElementById('main-content');
 
         // --- NOTIFICATION FUNCTION ---
         function showNotification(message, isError = false) {
@@ -305,9 +326,35 @@
             }, 3000);
         }
 
+        // --- BAN LIST CHECK ---
+        // Ban list lives in Firestore (bannedUsers/{uid}) so it can be
+        // managed from the Firebase console without redeploying the site.
+        // Firestore rules only allow a signed-in user to read their own
+        // document, so this check cannot be used to enumerate other users.
+        async function isUserBanned(uid) {
+            try {
+                const snap = await getDoc(doc(db, 'bannedUsers', uid));
+                return snap.exists();
+            } catch (e) {
+                // Read failed (offline, rules misconfigured, etc). Fail
+                // closed on the gate, but don't treat an outage as a ban.
+                console.error('Ban check failed:', e);
+                return null; // unknown
+            }
+        }
+
         // --- FIREBASE AUTHENTICATION ---
-        onAuthStateChanged(auth, user => {
+        onAuthStateChanged(auth, async user => {
             if (user) {
+                gateStatus.textContent = 'Checking account status...';
+                const banned = await isUserBanned(user.uid);
+
+                if (banned === true) {
+                    await signOut(auth).catch(() => {});
+                    window.location.href = 'access-denied.html';
+                    return;
+                }
+
                 currentUserId = user.uid;
                 const displayName = user.displayName || user.email || 'Signed in';
                 userStatus.innerHTML = `${displayName}<br><span class="text-xs text-cyan-600" title="${user.uid}">UID: ${user.uid.substring(0, 12)}...</span>`;
@@ -318,16 +365,28 @@
                 } else {
                     userAvatar.classList.add('hidden');
                 }
+
+                if (banned === false) {
+                    authGate.classList.add('hidden');
+                    mainContent.classList.remove('hidden');
+                } else {
+                    // banned check failed (unknown) - keep the gate up.
+                    gateStatus.textContent = 'Could not verify account status. Please refresh to try again.';
+                }
             } else {
                 currentUserId = null;
                 userStatus.textContent = 'Signed Out';
                 authButtonLabel.textContent = 'Sign In with Google';
                 userAvatar.classList.add('hidden');
                 userAvatar.src = '';
+
+                authGate.classList.remove('hidden');
+                mainContent.classList.add('hidden');
+                gateStatus.textContent = '';
             }
         });
 
-        authButton.addEventListener('click', () => {
+        function toggleAuth() {
             if (auth.currentUser) {
                 signOut(auth).catch(e => showNotification(`Error: ${e.message}`, true));
             } else {
@@ -335,9 +394,15 @@
                     .then(result => {
                         showNotification(`Welcome, ${result.user.displayName || result.user.email}!`);
                     })
-                    .catch(e => showNotification(`Sign-in failed: ${e.message}`, true));
+                    .catch(e => {
+                        gateStatus.textContent = '';
+                        showNotification(`Sign-in failed: ${e.message}`, true);
+                    });
             }
-        });
+        }
+
+        authButton.addEventListener('click', toggleAuth);
+        gateAuthButton.addEventListener('click', toggleAuth);
 
         // --- 3D LATTICE BACKGROUND ANIMATION ---
         const canvas = document.getElementById('neural-background');
